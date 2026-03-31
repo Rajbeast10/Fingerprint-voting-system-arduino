@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}VoteSecure — Voter Registration{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Voter Registration</h1>
+  <p>Enter details and scan fingerprint to register a new voter</p>
+</div>
+
+<!-- Step indicator -->
+<div class="steps">
+  <div class="step active" id="step1"><span class="step-num">1</span>Enter Details</div>
+  <div class="step"        id="step2"><span class="step-num">2</span>Scan Fingerprint</div>
+  <div class="step"        id="step3"><span class="step-num">3</span>Complete</div>
+</div>
+
+<div class="card">
+
+  <!-- ── Step 1: Voter info ─────────────────────────────────── -->
+  <div id="section-details">
+    <div class="form-group">
+      <label>Full Name</label>
+      <input type="text" id="voter-name" placeholder="e.g. Priya Sharma" autocomplete="off" />
+      <div class="field-error" id="err-name"></div>
+    </div>
+    <div class="form-group">
+      <label>Aadhar Number</label>
+      <input type="text" id="voter-aadhar" placeholder="12-digit Aadhar number"
+             maxlength="12" inputmode="numeric" autocomplete="off" />
+      <div class="field-error" id="err-aadhar"></div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-gold" onclick="proceedToScan()" id="btn-proceed">
+        Proceed to Fingerprint Scan →
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Step 2: Fingerprint scan ──────────────────────────── -->
+  <div id="section-scan" style="display:none;text-align:center;">
+    <p style="font-family:var(--mono);font-size:.8rem;color:var(--cream-dim);margin-bottom:.5rem;">
+      Registering: <span id="display-name" style="color:var(--gold)"></span>
+      &nbsp;·&nbsp;
+      Aadhar: <span id="display-aadhar" style="color:var(--gold)"></span>
+    </p>
+
+    <!-- Fingerprint widget -->
+    <div class="fp-scanner" id="fp-widget">
+      <div class="scan-line"></div>
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" stroke="var(--gold)" stroke-width="2">
+        <path d="M32 8C18.7 8 8 18.7 8 32" stroke-linecap="round"/>
+        <path d="M32 14c-9.9 0-18 8.1-18 18" stroke-linecap="round"/>
+        <path d="M32 20c-6.6 0-12 5.4-12 12" stroke-linecap="round"/>
+        <path d="M32 26c-3.3 0-6 2.7-6 6" stroke-linecap="round"/>
+        <path d="M32 8c13.3 0 24 10.7 24 24" stroke-linecap="round"/>
+        <path d="M32 14c9.9 0 18 8.1 18 18" stroke-linecap="round"/>
+        <path d="M32 20c6.6 0 12 5.4 12 12" stroke-linecap="round"/>
+        <path d="M32 26c3.3 0 6 2.7 6 6" stroke-linecap="round"/>
+        <circle cx="32" cy="32" r="2" fill="var(--gold)"/>
+      </svg>
+      <div class="fp-label" id="fp-label">Ready</div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:center;gap:.7rem;margin:.5rem 0;">
+      <div class="spinner" id="scan-spinner"></div>
+      <div id="scan-status" style="font-family:var(--mono);font-size:.8rem;color:var(--cream-dim);">
+        Press the button below then place your finger on the sensor
+      </div>
+    </div>
+
+    <div class="btn-group" style="justify-content:center;">
+      <button class="btn btn-gold" id="btn-scan" onclick="startScan()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.81 4.47c-.08 0-.16-.02-.23-.06C15.66 3.42 14 3 12.01 3c-1.98 0-3.86.47-5.57 1.41-.24.13-.54.04-.68-.2-.13-.24-.04-.55.2-.68C7.82 2.52 9.86 2 12.01 2c2.13 0 3.99.47 6.03 1.52.25.13.34.43.21.67-.09.18-.26.28-.44.28zM3.5 9.72a.499.499 0 01-.41-.79C4.54 7.25 6.27 5.91 8.24 5.03c4.01-1.77 8.93-1.51 12.73.68.27.14.37.45.24.72s-.45.37-.72.24c-3.46-1.98-7.96-2.24-11.64-.63-1.75.77-3.31 1.98-4.54 3.51-.1.12-.25.17-.41.17zm3.08 7.27c-.11 0-.22-.04-.31-.11-1.31-1.09-2.26-2.67-2.56-4.34-.12-.66-.18-1.32-.18-1.98 0-1.89.56-3.67 1.62-5.16.24-.33.57-.57.95-.70l.04-.01c.28-.09.42-.38.34-.65a.501.501 0 00-.64-.34l-.04.01c-.57.18-1.07.53-1.42 1.03C2.57 6.7 2 8.54 2 10.56c0 .73.06 1.46.2 2.17.33 1.88 1.38 3.66 2.86 4.88.21.18.26.5.08.71-.11.12-.26.18-.41.18l-.15-.01z"/>
+        </svg>
+        Start Fingerprint Scan
+      </button>
+      <button class="btn btn-outline" onclick="backToDetails()">← Back</button>
+    </div>
+  </div>
+
+  <!-- ── Alerts ─────────────────────────────────────────────── -->
+  <div class="alert" id="reg-alert"></div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const stepsEls   = [document.getElementById('step1'),
+                       document.getElementById('step2'),
+                       document.getElementById('step3')];
+  const regAlert   = document.getElementById('reg-alert');
+  let   fpScanned  = false;
+
+  // ── Step 1 → Step 2 ────────────────────────────────────────
+  function proceedToScan() {
+    hideAlert(regAlert);
+    const name   = document.getElementById('voter-name').value.trim();
+    const aadhar = document.getElementById('voter-aadhar').value.trim();
+    let   valid  = true;
+
+    // Clear previous errors
+    document.getElementById('err-name').textContent   = '';
+    document.getElementById('err-aadhar').textContent = '';
+    document.getElementById('voter-name').classList.remove('error');
+    document.getElementById('voter-aadhar').classList.remove('error');
+
+    if (!name) {
+      document.getElementById('err-name').textContent = 'Name is required.';
+      document.getElementById('voter-name').classList.add('error');
+      valid = false;
+    }
+    if (!/^\d{12}$/.test(aadhar)) {
+      document.getElementById('err-aadhar').textContent = 'Aadhar must be exactly 12 digits.';
+      document.getElementById('voter-aadhar').classList.add('error');
+      valid = false;
+    }
+    if (!valid) return;
+
+    document.getElementById('display-name').textContent   = name;
+    document.getElementById('display-aadhar').textContent = aadhar;
+    document.getElementById('section-details').style.display = 'none';
+    document.getElementById('section-scan').style.display    = 'block';
+    setStep(stepsEls, 2);
+  }
+
+  function backToDetails() {
+    document.getElementById('section-scan').style.display    = 'none';
+    document.getElementById('section-details').style.display = 'block';
+    setStep(stepsEls, 1);
+    resetScanner();
+    hideAlert(regAlert);
+  }
+
+  // ── Scanner helpers ─────────────────────────────────────────
+  function resetScanner() {
+    const w = document.getElementById('fp-widget');
+    w.className = 'fp-scanner';
+    document.getElementById('fp-label').textContent = 'Ready';
+    document.getElementById('scan-spinner').className = 'spinner';
+    document.getElementById('btn-scan').disabled = false;
+    fpScanned = false;
+  }
+  function setScannerState(state, label) {
+    const w = document.getElementById('fp-widget');
+    w.className = 'fp-scanner ' + state;
+    document.getElementById('fp-label').textContent = label;
+  }
+
+  // ── Step 2: Scan fingerprint via Arduino ────────────────────
+  async function startScan() {
+    document.getElementById('btn-scan').disabled = true;
+    document.getElementById('scan-spinner').className = 'spinner show';
+    setScannerState('scanning', 'Scanning…');
+    document.getElementById('scan-status').textContent = 'Place your finger on the sensor (scan 1/2)…';
+    hideAlert(regAlert);
+
+    try {
+      const { ok, data } = await api('/api/scan/enroll', 'POST');
+      if (ok && data.success) {
+        setScannerState('success', 'Captured!');
+        document.getElementById('scan-status').textContent = 'Fingerprint captured successfully. Registering…';
+        fpScanned = true;
+        await completeRegistration();
+      } else {
+        setScannerState('error', 'Failed');
+        document.getElementById('scan-status').textContent = data.error || 'Scan failed.';
+        showAlert(regAlert, data.error || 'Fingerprint scan failed.', 'error');
+        document.getElementById('btn-scan').disabled = false;
+      }
+    } catch (e) {
+      setScannerState('error', 'Error');
+      showAlert(regAlert, 'Connection error. Is Arduino connected?', 'error');
+      document.getElementById('btn-scan').disabled = false;
+    }
+    document.getElementById('scan-spinner').className = 'spinner';
+  }
+
+  // ── Step 3: Save to database ─────────────────────────────────
+  async function completeRegistration() {
+    const name   = document.getElementById('voter-name').value.trim();
+    const aadhar = document.getElementById('voter-aadhar').value.trim();
+
+    const { ok, data } = await api('/api/register', 'POST', { name, aadhar_number: aadhar });
+
+    if (ok && data.success) {
+      setStep(stepsEls, 3);
+      showAlert(regAlert, '✔ ' + data.message, 'success');
+      // Reset form after 3s
+      setTimeout(() => {
+        document.getElementById('voter-name').value   = '';
+        document.getElementById('voter-aadhar').value = '';
+        document.getElementById('section-scan').style.display    = 'none';
+        document.getElementById('section-details').style.display = 'block';
+        setStep(stepsEls, 1);
+        resetScanner();
+        hideAlert(regAlert);
+      }, 3500);
+    } else {
+      setScannerState('error', 'Error');
+      const msg = data.error || (data.errors ? Object.values(data.errors).join(' ') : 'Registration failed.');
+      showAlert(regAlert, msg, 'error');
+      document.getElementById('btn-scan').disabled = false;
+      fpScanned = false;
+    }
+  }
+</script>
+{% endblock %}

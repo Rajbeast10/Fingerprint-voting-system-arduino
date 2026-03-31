@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}VoteSecure — Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Election Dashboard</h1>
+  <p>Fingerprint-secured digital voting system</p>
+</div>
+
+<!-- Status cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1rem;margin-bottom:2rem;">
+
+  <div class="card" style="text-align:center;padding:1.5rem 1rem;">
+    <div style="font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;">Registered Voters</div>
+    <div id="stat-registered" style="font-family:var(--serif);font-size:2.6rem;color:var(--cream);">—</div>
+  </div>
+
+  <div class="card" style="text-align:center;padding:1.5rem 1rem;">
+    <div style="font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;">Votes Cast</div>
+    <div id="stat-voted" style="font-family:var(--serif);font-size:2.6rem;color:var(--cream);">—</div>
+  </div>
+
+  <div class="card" style="text-align:center;padding:1.5rem 1rem;">
+    <div style="font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;">Turnout</div>
+    <div id="stat-turnout" style="font-family:var(--serif);font-size:2.6rem;color:var(--cream);">—</div>
+  </div>
+
+  <div class="card" style="text-align:center;padding:1.5rem 1rem;">
+    <div style="font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;">Hardware</div>
+    <div id="stat-hw" style="font-family:var(--serif);font-size:1rem;color:var(--cream);margin-top:.5rem;">—</div>
+    <button class="btn btn-outline" style="margin-top:.7rem;font-size:.65rem;" onclick="reconnect()">Reconnect</button>
+  </div>
+
+</div>
+
+<!-- Live results -->
+<div class="card">
+  <div style="font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem;">
+    Live Vote Tally
+  </div>
+  <div id="results-container" class="results-list">
+    <div style="font-family:var(--mono);font-size:.8rem;color:var(--cream-dim);">Loading…</div>
+  </div>
+</div>
+
+<!-- Quick-action links -->
+<div style="display:flex;gap:1rem;margin-top:1.5rem;flex-wrap:wrap;">
+  <a href="/register" class="btn btn-gold" style="text-decoration:none;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+    Register Voter
+  </a>
+  <a href="/vote" class="btn btn-outline" style="text-decoration:none;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z"/></svg>
+    Cast a Vote
+  </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function loadDashboard() {
+    const { data: results } = await api('/api/results');
+    const { data: status }  = await api('/api/status');
+
+    document.getElementById('stat-voted').textContent = results.total_votes;
+    document.getElementById('stat-hw').textContent    = status.arduino === 'connected'
+      ? '🟢 ' + (status.port || 'Arduino')
+      : '🔴 Disconnected';
+
+    // Registered count (quick fetch via results)
+    const reg = await api('/api/results');   // reuse — we don't have a separate endpoint yet
+
+    const total = results.candidates.reduce((s, c) => s + c.vote_count, 0) || 1;
+    const maxV  = Math.max(...results.candidates.map(c => c.vote_count), 1);
+
+    // Turnout: total_votes / (we'd need registered count; show votes for now)
+    document.getElementById('stat-registered').textContent = '—';
+    document.getElementById('stat-turnout').textContent    = results.total_votes + ' votes';
+
+    const container = document.getElementById('results-container');
+    if (!results.candidates.length) {
+      container.innerHTML = '<div style="font-family:var(--mono);font-size:.8rem;color:var(--cream-dim);">No data yet.</div>';
+      return;
+    }
+    container.innerHTML = results.candidates.map(c => {
+      const pct = Math.round((c.vote_count / maxV) * 100);
+      return `
+        <div class="result-row">
+          <div class="result-name">${c.candidate_name}</div>
+          <div class="result-bar-bg">
+            <div class="result-bar" style="width:${pct}%"></div>
+          </div>
+          <div class="result-count">${c.vote_count}</div>
+        </div>`;
+    }).join('');
+  }
+
+  async function reconnect() {
+    const { data } = await api('/api/reconnect', 'POST');
+    alert(data.success ? 'Arduino reconnected!' : 'Could not connect: ' + data.status);
+    loadDashboard();
+  }
+
+  loadDashboard();
+  setInterval(loadDashboard, 5000);   // Refresh every 5 seconds
+</script>
+{% endblock %}

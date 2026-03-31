@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}VoteSecure{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Design Tokens ───────────────────────────────────────── */
+    :root {
+      --navy:      #0a1628;
+      --navy-mid:  #132040;
+      --navy-lite: #1e3260;
+      --gold:      #c9a84c;
+      --gold-lite: #e8c96a;
+      --gold-dim:  #7a6030;
+      --cream:     #f5f0e8;
+      --cream-dim: #ddd5c0;
+      --red:       #c0392b;
+      --green:     #1a6b3c;
+      --white:     #ffffff;
+      --shadow:    0 8px 32px rgba(0,0,0,0.45);
+      --radius:    6px;
+      --mono:      'IBM Plex Mono', monospace;
+      --sans:      'IBM Plex Sans', sans-serif;
+      --serif:     'Playfair Display', serif;
+    }
+
+    /* ── Reset ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body {
+      background: var(--navy);
+      color: var(--cream);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Geometric background texture ───────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        repeating-linear-gradient(0deg,   transparent, transparent 59px, rgba(201,168,76,.06) 60px),
+        repeating-linear-gradient(90deg,  transparent, transparent 59px, rgba(201,168,76,.06) 60px);
+      pointer-events: none;
+    }
+
+    /* ── Nav ─────────────────────────────────────────────────── */
+    nav {
+      position: relative; z-index: 10;
+      background: var(--navy-mid);
+      border-bottom: 2px solid var(--gold);
+      padding: 0 2rem;
+      display: flex; align-items: center; gap: 2rem;
+      height: 64px;
+    }
+    .nav-brand {
+      font-family: var(--serif);
+      font-size: 1.35rem;
+      color: var(--gold);
+      letter-spacing: .04em;
+      text-decoration: none;
+      display: flex; align-items: center; gap: .55rem;
+    }
+    .nav-brand svg { width: 26px; height: 26px; fill: var(--gold); flex-shrink: 0; }
+    .nav-links { display: flex; gap: .25rem; margin-left: auto; }
+    .nav-links a {
+      font-family: var(--mono);
+      font-size: .78rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--cream-dim);
+      text-decoration: none;
+      padding: .45rem .9rem;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      transition: all .2s;
+    }
+    .nav-links a:hover, .nav-links a.active {
+      color: var(--gold);
+      border-color: var(--gold-dim);
+      background: rgba(201,168,76,.08);
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      display: inline-block; margin-right: .4rem;
+      animation: pulse 2s infinite;
+    }
+    .status-dot.connected  { background: #27ae60; }
+    .status-dot.disconnected { background: var(--red); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: .4; }
+    }
+
+    /* ── Main content wrapper ────────────────────────────────── */
+    main {
+      position: relative; z-index: 1;
+      flex: 1;
+      padding: 2.5rem 2rem;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ── Page heading strip ─────────────────────────────────── */
+    .page-header {
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.2rem;
+      border-bottom: 1px solid var(--gold-dim);
+    }
+    .page-header h1 {
+      font-family: var(--serif);
+      font-size: 2.1rem;
+      color: var(--gold);
+      line-height: 1.1;
+    }
+    .page-header p {
+      font-size: .9rem;
+      color: var(--cream-dim);
+      margin-top: .5rem;
+      font-family: var(--mono);
+      letter-spacing: .04em;
+    }
+
+    /* ── Cards ───────────────────────────────────────────────── */
+    .card {
+      background: var(--navy-mid);
+      border: 1px solid rgba(201,168,76,.25);
+      border-radius: var(--radius);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+    }
+    .card + .card { margin-top: 1.5rem; }
+
+    /* ── Form elements ───────────────────────────────────────── */
+    .form-group { margin-bottom: 1.4rem; }
+    .form-group label {
+      display: block;
+      font-family: var(--mono);
+      font-size: .72rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: .5rem;
+    }
+    .form-group input {
+      width: 100%;
+      background: var(--navy);
+      border: 1px solid var(--navy-lite);
+      border-radius: var(--radius);
+      color: var(--cream);
+      font-family: var(--mono);
+      font-size: .95rem;
+      padding: .75rem 1rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .form-group input:focus { border-color: var(--gold); }
+    .form-group input.error  { border-color: var(--red); }
+    .field-error {
+      font-family: var(--mono);
+      font-size: .72rem;
+      color: var(--red);
+      margin-top: .3rem;
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      font-family: var(--mono);
+      font-size: .8rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: .7rem 1.4rem;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      transition: all .2s;
+      font-weight: 600;
+    }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-gold {
+      background: var(--gold);
+      color: var(--navy);
+    }
+    .btn-gold:hover:not(:disabled) { background: var(--gold-lite); transform: translateY(-1px); }
+    .btn-outline {
+      background: transparent;
+      color: var(--gold);
+      border: 1px solid var(--gold-dim);
+    }
+    .btn-outline:hover:not(:disabled) {
+      background: rgba(201,168,76,.1);
+      border-color: var(--gold);
+    }
+    .btn-danger  { background: var(--red);   color: var(--white); }
+    .btn-success { background: var(--green);  color: var(--white); }
+    .btn-group   { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1rem; }
+
+    /* ── Fingerprint scanner animation ──────────────────────── */
+    .fp-scanner {
+      width: 110px; height: 110px;
+      border: 2px solid var(--gold-dim);
+      border-radius: 12px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: .4rem;
+      position: relative;
+      overflow: hidden;
+      margin: 1.5rem auto;
+      background: var(--navy);
+    }
+    .fp-scanner svg { width: 52px; height: 52px; fill: none; }
+    .fp-scanner .scan-line {
+      position: absolute;
+      left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      top: -2px;
+      animation: none;
+    }
+    .fp-scanner.scanning { border-color: var(--gold); }
+    .fp-scanner.scanning .scan-line { animation: scandown 1.4s ease-in-out infinite; }
+    .fp-scanner.success { border-color: #27ae60; }
+    .fp-scanner.error   { border-color: var(--red); }
+    @keyframes scandown {
+      0%   { top: 0; }
+      50%  { top: calc(100% - 2px); }
+      100% { top: 0; }
+    }
+    .fp-label {
+      font-family: var(--mono);
+      font-size: .65rem;
+      letter-spacing: .1em;
+      color: var(--cream-dim);
+      text-transform: uppercase;
+    }
+
+    /* ── Alert banners ───────────────────────────────────────── */
+    .alert {
+      padding: .85rem 1.1rem;
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: .82rem;
+      margin-top: 1.2rem;
+      display: none;
+      align-items: flex-start;
+      gap: .6rem;
+      line-height: 1.5;
+    }
+    .alert.show { display: flex; }
+    .alert-success { background: rgba(26,107,60,.25); border: 1px solid #27ae60; color: #5dca8e; }
+    .alert-error   { background: rgba(192,57,43,.2);  border: 1px solid var(--red); color: #f08070; }
+    .alert-info    { background: rgba(201,168,76,.12); border: 1px solid var(--gold-dim); color: var(--gold); }
+
+    /* ── Step indicator ──────────────────────────────────────── */
+    .steps {
+      display: flex; gap: 0;
+      margin-bottom: 2rem;
+      counter-reset: step;
+    }
+    .step {
+      flex: 1;
+      padding: .6rem .5rem;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: .68rem;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--cream-dim);
+      border-bottom: 2px solid var(--navy-lite);
+      position: relative;
+      transition: all .3s;
+    }
+    .step.active { color: var(--gold); border-color: var(--gold); }
+    .step.done   { color: #27ae60;     border-color: #27ae60; }
+    .step-num {
+      display: block;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: .15rem;
+    }
+
+    /* ── Candidate grid ──────────────────────────────────────── */
+    .candidates { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1.2rem; }
+    .candidate-btn {
+      background: var(--navy);
+      border: 2px solid var(--navy-lite);
+      border-radius: var(--radius);
+      padding: 1.4rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: var(--serif);
+      font-size: 1.05rem;
+      color: var(--cream);
+    }
+    .candidate-btn:hover:not(:disabled) {
+      border-color: var(--gold);
+      color: var(--gold);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(201,168,76,.2);
+    }
+    .candidate-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .candidate-btn .c-icon { font-size: 1.8rem; margin-bottom: .5rem; display: block; }
+
+    /* ── Loading spinner ─────────────────────────────────────── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(201,168,76,.3);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    .spinner.show { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Results bar chart ───────────────────────────────────── */
+    .results-list { display: flex; flex-direction: column; gap: .75rem; }
+    .result-row { display: flex; align-items: center; gap: 1rem; }
+    .result-name { font-family: var(--mono); font-size: .8rem; width: 130px; flex-shrink: 0; }
+    .result-bar-bg {
+      flex: 1; height: 22px;
+      background: var(--navy);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .result-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+      border-radius: 3px;
+      transition: width .8s ease;
+      min-width: 3px;
+    }
+    .result-count {
+      font-family: var(--mono);
+      font-size: .8rem;
+      color: var(--gold);
+      width: 40px;
+      text-align: right;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    footer {
+      position: relative; z-index: 1;
+      text-align: center;
+      padding: 1.2rem;
+      font-family: var(--mono);
+      font-size: .68rem;
+      color: var(--navy-lite);
+      letter-spacing: .06em;
+      border-top: 1px solid var(--navy-lite);
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-brand">
+    <!-- Ballot box icon -->
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 6h-2.18c.07-.31.18-.61.18-.94C18 3.38 16.62 2 14.94 2c-.88 0-1.66.36-2.24.93L12 3.67l-.7-.74A3.07 3.07 0 009.06 2C7.38 2 6 3.38 6 5.06c0 .33.11.63.18.94H4C2.9 6 2 6.9 2 8v13c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5.06-2c.58 0 1.06.48 1.06 1.06S15.52 6.12 14.94 6.12 13.88 5.64 13.88 5.06 14.36 4 14.94 4zm-5.88 0c.58 0 1.06.48 1.06 1.06S9.64 6.12 9.06 6.12 8 5.64 8 5.06 8.48 4 9.06 4zM20 21H4V8h16v13z"/>
+    </svg>
+    VoteSecure
+  </a>
+  <div class="nav-links">
+    <a href="/"         class="{{ 'active' if request.path=='/' else '' }}">Dashboard</a>
+    <a href="/register" class="{{ 'active' if '/register' in request.path else '' }}">Register</a>
+    <a href="/vote"     class="{{ 'active' if '/vote' in request.path else '' }}">Vote</a>
+  </div>
+  <span style="font-family:var(--mono);font-size:.72rem;margin-left:1rem;display:flex;align-items:center;">
+    <span class="status-dot {{ 'connected' if arduino_status == 'connected' else 'disconnected' }}"></span>
+    Arduino {{ arduino_status }}
+  </span>
+</nav>
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<footer>VoteSecure Fingerprint Voting System &nbsp;·&nbsp; Secure &nbsp;·&nbsp; Transparent &nbsp;·&nbsp; Tamper-Proof</footer>
+
+<script>
+  // ── Global helpers ──────────────────────────────────────────
+  async function api(url, method='GET', body=null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    return { ok: res.ok, status: res.status, data: await res.json() };
+  }
+
+  function showAlert(el, msg, type='info') {
+    el.className = `alert alert-${type} show`;
+    el.textContent = msg;
+  }
+  function hideAlert(el) {
+    el.className = 'alert';
+    el.textContent = '';
+  }
+  function setStep(steps, n) {
+    steps.forEach((s, i) => {
+      s.classList.toggle('done',   i < n - 1);
+      s.classList.toggle('active', i === n - 1);
+    });
+  }
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

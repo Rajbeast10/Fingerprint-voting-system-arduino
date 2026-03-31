@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}VoteSecure — Voting Panel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Voting Panel</h1>
+  <p>Verify identity and cast your vote securely</p>
+</div>
+
+<!-- Step indicator -->
+<div class="steps">
+  <div class="step active" id="vstep1"><span class="step-num">1</span>Verify Aadhar</div>
+  <div class="step"        id="vstep2"><span class="step-num">2</span>Scan Fingerprint</div>
+  <div class="step"        id="vstep3"><span class="step-num">3</span>Cast Vote</div>
+  <div class="step"        id="vstep4"><span class="step-num">4</span>Complete</div>
+</div>
+
+<div class="card">
+
+  <!-- ── Step 1: Aadhar verification ───────────────────────── -->
+  <div id="vsection-aadhar">
+    <div class="form-group">
+      <label>Aadhar Number</label>
+      <input type="text" id="vote-aadhar" placeholder="Enter your 12-digit Aadhar"
+             maxlength="12" inputmode="numeric" autocomplete="off" />
+      <div class="field-error" id="verr-aadhar"></div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-gold" onclick="verifyAadhar()" id="btn-verify-aadhar">
+        <div class="spinner" id="verify-spinner" style="border-color:rgba(10,22,40,.3);border-top-color:var(--navy);"></div>
+        Verify Aadhar →
+      </button>
+    </div>
+    <div class="alert" id="v-alert-1"></div>
+  </div>
+
+  <!-- ── Step 2: Fingerprint scan ──────────────────────────── -->
+  <div id="vsection-scan" style="display:none;text-align:center;">
+    <p id="voter-greeting" style="font-family:var(--mono);font-size:.85rem;color:var(--gold);margin-bottom:.5rem;"></p>
+    <p style="font-family:var(--mono);font-size:.75rem;color:var(--cream-dim);">Place the same finger used during registration on the sensor.</p>
+
+    <div class="fp-scanner" id="vfp-widget">
+      <div class="scan-line"></div>
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" stroke="var(--gold)" stroke-width="2">
+        <path d="M32 8C18.7 8 8 18.7 8 32" stroke-linecap="round"/>
+        <path d="M32 14c-9.9 0-18 8.1-18 18" stroke-linecap="round"/>
+        <path d="M32 20c-6.6 0-12 5.4-12 12" stroke-linecap="round"/>
+        <path d="M32 26c-3.3 0-6 2.7-6 6" stroke-linecap="round"/>
+        <path d="M32 8c13.3 0 24 10.7 24 24" stroke-linecap="round"/>
+        <path d="M32 14c9.9 0 18 8.1 18 18" stroke-linecap="round"/>
+        <path d="M32 20c6.6 0 12 5.4 12 12" stroke-linecap="round"/>
+        <path d="M32 26c3.3 0 6 2.7 6 6" stroke-linecap="round"/>
+        <circle cx="32" cy="32" r="2" fill="var(--gold)"/>
+      </svg>
+      <div class="fp-label" id="vfp-label">Ready</div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:center;gap:.7rem;margin:.5rem 0;">
+      <div class="spinner" id="vscan-spinner"></div>
+      <div id="vscan-status" style="font-family:var(--mono);font-size:.8rem;color:var(--cream-dim);">
+        Press the button and place your finger on the sensor
+      </div>
+    </div>
+
+    <div class="btn-group" style="justify-content:center;">
+      <button class="btn btn-gold" id="vbtn-scan" onclick="verifyFingerprint()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.81 4.47c-.08 0-.16-.02-.23-.06C15.66 3.42 14 3 12.01 3c-1.98 0-3.86.47-5.57 1.41-.24.13-.54.04-.68-.2-.13-.24-.04-.55.2-.68C7.82 2.52 9.86 2 12.01 2c2.13 0 3.99.47 6.03 1.52.25.13.34.43.21.67-.09.18-.26.28-.44.28zM3.5 9.72a.499.499 0 01-.41-.79C4.54 7.25 6.27 5.91 8.24 5.03c4.01-1.77 8.93-1.51 12.73.68.27.14.37.45.24.72s-.45.37-.72.24c-3.46-1.98-7.96-2.24-11.64-.63-1.75.77-3.31 1.98-4.54 3.51-.1.12-.25.17-.41.17zm3.08 7.27c-.11 0-.22-.04-.31-.11-1.31-1.09-2.26-2.67-2.56-4.34-.12-.66-.18-1.32-.18-1.98 0-1.89.56-3.67 1.62-5.16.24-.33.57-.57.95-.70l.04-.01c.28-.09.42-.38.34-.65a.501.501 0 00-.64-.34l-.04.01c-.57.18-1.07.53-1.42 1.03C2.57 6.7 2 8.54 2 10.56c0 .73.06 1.46.2 2.17.33 1.88 1.38 3.66 2.86 4.88.21.18.26.5.08.71-.11.12-.26.18-.41.18l-.15-.01z"/>
+        </svg>
+        Scan Fingerprint
+      </button>
+      <button class="btn btn-outline" onclick="resetVoteFlow()">← Start Over</button>
+    </div>
+    <div class="alert" id="v-alert-2"></div>
+  </div>
+
+  <!-- ── Step 3: Candidate selection ───────────────────────── -->
+  <div id="vsection-vote" style="display:none;">
+    <p style="font-family:var(--mono);font-size:.8rem;color:var(--cream-dim);margin-bottom:1.2rem;">
+      Identity verified. Select your candidate below. This action is final and cannot be undone.
+    </p>
+
+    <div class="candidates" id="candidates-grid">
+      {% for candidate in candidates %}
+      <button class="candidate-btn"
+              onclick="castVote('{{ candidate.candidate_name }}', this)"
+              data-candidate="{{ candidate.candidate_name }}">
+        <span class="c-icon">{{ '🅰️' if loop.index == 1 else ('🅱️' if loop.index == 2 else '🏛️') }}</span>
+        {{ candidate.candidate_name }}
+      </button>
+      {% endfor %}
+    </div>
+    <div class="alert" id="v-alert-3"></div>
+  </div>
+
+  <!-- ── Step 4: Done ───────────────────────────────────────── -->
+  <div id="vsection-done" style="display:none;text-align:center;padding:1.5rem 0;">
+    <div style="font-size:3rem;margin-bottom:1rem;">✅</div>
+    <div style="font-family:var(--serif);font-size:1.6rem;color:var(--gold);margin-bottom:.5rem;">
+      Vote Cast Successfully
+    </div>
+    <p style="font-family:var(--mono);font-size:.8rem;color:var(--cream-dim);margin-bottom:1.5rem;">
+      Thank you for participating in the democratic process.
+    </p>
+    <button class="btn btn-outline" onclick="resetVoteFlow()">Vote Another Citizen</button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const vsteps = ['vstep1','vstep2','vstep3','vstep4'].map(id => document.getElementById(id));
+
+  // ── Reset entire flow ───────────────────────────────────────
+  function resetVoteFlow() {
+    ['vsection-aadhar','vsection-scan','vsection-vote','vsection-done'].forEach((id, i) => {
+      document.getElementById(id).style.display = i === 0 ? 'block' : 'none';
+    });
+    document.getElementById('vote-aadhar').value = '';
+    document.getElementById('verr-aadhar').textContent = '';
+    document.getElementById('vote-aadhar').classList.remove('error');
+    resetVScanner();
+    hideAlert(document.getElementById('v-alert-1'));
+    hideAlert(document.getElementById('v-alert-2'));
+    hideAlert(document.getElementById('v-alert-3'));
+    setStep(vsteps, 1);
+    enableCandidates(true);
+  }
+
+  function resetVScanner() {
+    const w = document.getElementById('vfp-widget');
+    w.className = 'fp-scanner';
+    document.getElementById('vfp-label').textContent = 'Ready';
+    document.getElementById('vscan-spinner').className = 'spinner';
+    document.getElementById('vbtn-scan').disabled = false;
+    document.getElementById('vscan-status').textContent = 'Press the button and place your finger on the sensor';
+  }
+
+  function setVScannerState(state, label) {
+    document.getElementById('vfp-widget').className = 'fp-scanner ' + state;
+    document.getElementById('vfp-label').textContent = label;
+  }
+
+  function enableCandidates(enable) {
+    document.querySelectorAll('.candidate-btn').forEach(b => b.disabled = !enable);
+  }
+
+  // ── Step 1: Verify Aadhar ───────────────────────────────────
+  async function verifyAadhar() {
+    const aadhar = document.getElementById('vote-aadhar').value.trim();
+    const errEl  = document.getElementById('verr-aadhar');
+    const alertEl = document.getElementById('v-alert-1');
+    errEl.textContent = '';
+    document.getElementById('vote-aadhar').classList.remove('error');
+    hideAlert(alertEl);
+
+    if (!/^\d{12}$/.test(aadhar)) {
+      errEl.textContent = 'Enter a valid 12-digit Aadhar number.';
+      document.getElementById('vote-aadhar').classList.add('error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-verify-aadhar');
+    btn.disabled = true;
+    document.getElementById('verify-spinner').className = 'spinner show';
+
+    const { ok, data } = await api('/api/verify-aadhar', 'POST', { aadhar_number: aadhar });
+
+    btn.disabled = false;
+    document.getElementById('verify-spinner').className = 'spinner';
+
+    if (!ok) {
+      showAlert(alertEl, data.error || 'Verification failed.', 'error');
+      return;
+    }
+    if (data.has_voted) {
+      showAlert(alertEl, 'You have already voted.', 'error');
+      return;
+    }
+
+    // Move to scan step
+    document.getElementById('voter-greeting').textContent = 'Welcome, ' + data.name;
+    document.getElementById('vsection-aadhar').style.display = 'none';
+    document.getElementById('vsection-scan').style.display   = 'block';
+    setStep(vsteps, 2);
+  }
+
+  // ── Step 2: Verify Fingerprint ──────────────────────────────
+  async function verifyFingerprint() {
+    document.getElementById('vbtn-scan').disabled = true;
+    document.getElementById('vscan-spinner').className = 'spinner show';
+    setVScannerState('scanning', 'Scanning…');
+    document.getElementById('vscan-status').textContent = 'Place your registered finger on the sensor…';
+    hideAlert(document.getElementById('v-alert-2'));
+
+    const { ok, data } = await api('/api/scan/verify', 'POST');
+
+    document.getElementById('vscan-spinner').className = 'spinner';
+
+    if (ok && data.success) {
+      setVScannerState('success', 'Matched!');
+      document.getElementById('vscan-status').textContent = 'Fingerprint matched. Proceed to vote.';
+      setTimeout(() => {
+        document.getElementById('vsection-scan').style.display = 'none';
+        document.getElementById('vsection-vote').style.display = 'block';
+        setStep(vsteps, 3);
+      }, 1000);
+    } else {
+      setVScannerState('error', 'No Match');
+      showAlert(document.getElementById('v-alert-2'), data.error || 'Scan failed.', 'error');
+      document.getElementById('vbtn-scan').disabled = false;
+    }
+  }
+
+  // ── Step 3: Cast vote ───────────────────────────────────────
+  async function castVote(candidate, btnEl) {
+    const alertEl = document.getElementById('v-alert-3');
+    hideAlert(alertEl);
+    enableCandidates(false);
+
+    // Highlight selected
+    btnEl.style.borderColor = 'var(--gold)';
+    btnEl.style.color       = 'var(--gold)';
+
+    const { ok, data } = await api('/api/cast-vote', 'POST', { candidate });
+
+    if (ok && data.success) {
+      document.getElementById('vsection-vote').style.display = 'none';
+      document.getElementById('vsection-done').style.display = 'block';
+      setStep(vsteps, 4);
+    } else {
+      showAlert(alertEl, data.error || 'Vote failed.', 'error');
+      enableCandidates(true);
+      btnEl.style.borderColor = '';
+      btnEl.style.color       = '';
+    }
+  }
+</script>
+{% endblock %}
